@@ -1,0 +1,75 @@
+{
+  "serviceName": "FE",
+  "plainFiles": {
+    "SSL_CERT": "app/certificates/cert.pem",
+    "SSL_CHAIN": "app/certificates/chain.pem",
+    "SSL_FULLCHAIN": "app/certificates/fullchain.pem",
+    "SSL_PRIVKEY": "app/certificates/privkey.pem"
+  },
+  "envFiles": [
+    {
+      "path": ".env",
+      "variables": {
+        "ENV_NAME": "ENV_NAME",
+        "NPM_PRIVATE_TOKEN": "NPM_PRIVATE_TOKEN",
+        "FE_PORT": "PORT_FE_APP",
+        "FE_EDITOR_2D_PORT": "PORT_FE_EDITOR_2D",
+        "FE_EDITOR_3D_PORT": "PORT_FE_EDITOR_3D"
+      }
+    },
+    {
+      "path": "app/client/.env",
+      "variables": {
+        "ENV_NAME": "ENV_NAME",
+        "FE_AUTH_SECRET": "AUTH_SECRET",
+        "FE_URL": "NEXT_PUBLIC_FE_APP_URL",
+        "FE_AUTH_URL": "NEXTAUTH_URL",
+        "DOCUMENTS_URL": "NEXT_PUBLIC_FE_CLOUD_STORAGE_URL",
+        "DRAWIO_URL": "NEXT_PUBLIC_FE_EDITOR_2D_URL",
+        "THREEJS_URL": "NEXT_PUBLIC_FE_EDITOR_3D_URL",
+        "BACKEND_1D_URL": {
+          "name": "NEXT_PUBLIC_BE_1D_URL",
+          "mapping": {"dev": "qa"}
+        },
+        "BACKEND_BIM_URL": {
+          "name": "NEXT_PUBLIC_BE_BIM_URL",
+          "mapping": {"dev": "qa"}
+        },
+        "BACKEND_USERS_URL": {
+          "name": "NEXT_PUBLIC_BE_USERS_URL",
+          "mapping": {"dev": "qa"}
+        },
+        "BE_SERVICES_PYTHON_URL": "NEXT_PUBLIC_BE_SERVICES_PYTHON_URL",
+        "SENTRY_URL": "SENTRY_URL",
+        "SENTRY_DSN_FE": "NEXT_PUBLIC_SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN_FE": "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG": "SENTRY_ORG",
+        "SENTRY_PROJECT_FE": "SENTRY_PROJECT"
+      }
+    },
+    {
+      "path": "app/.env",
+      "variables": {
+        "NPM_PRIVATE_URL": "NPM_PRIVATE_URL",
+        "NPM_PRIVATE_TOKEN": "NPM_PRIVATE_TOKEN",
+        "FE_PORT": "PORT"
+      }
+    },
+    {
+      "path": "editor-2d/.env",
+      "variables": {
+        "ENV_NAME": "ENV_NAME",
+        "NPM_PRIVATE_TOKEN": "NPM_PRIVATE_TOKEN",
+        "FE_EDITOR_2D_PORT": "PORT"
+      }
+    },
+    {
+      "path": "editor-3d/.env",
+      "variables": {
+        "ENV_NAME": "ENV_NAME",
+        "NPM_PRIVATE_TOKEN": "NPM_PRIVATE_TOKEN",
+        "FE_EDITOR_3D_PORT": "PORT"
+      }
+    }
+  ]
+}
