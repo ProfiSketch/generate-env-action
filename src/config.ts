@@ -1,28 +1,24 @@
-import * as core from '@actions/core'
+/* eslint-disable sort-imports */
+
 import fs from 'fs'
-import {Config} from './typings'
+
+import {Config, ConfigType} from './typings'
 
 function readConfig(configPath: string): string {
-  try {
-    return fs.readFileSync(new URL(configPath, import.meta.url))
-  } catch (err) {
-    core.setFailed(String(err))
-  }
+  return fs.readFileSync(configPath).toString()
 }
 
 function parseConfig(configFile: string): unknown {
-  try {
-    return JSON.parse(configFile)
-  } catch (err) {
-    core.setFailed(String(err))
-  }
+  return JSON.parse(configFile)
 }
 
-function validateConfig(configObject: unknown) {}
+function validateConfig(configObject: unknown): ConfigType {
+  return Config.parse(configObject)
+}
 
-export function getConfig(configPath: string): Config {
+export function getConfig(configPath: string): ConfigType {
   const file = readConfig(configPath)
-  const config = parseConfig(file)
-  validateConfig(config)
-  return config as Config
+  const configJson = parseConfig(file)
+  const config = validateConfig(configJson)
+  return config
 }

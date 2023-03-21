@@ -1,17 +1,23 @@
-import * as core from '@actions/core'
+/* eslint-disable sort-imports */
+
+import {getInput, debug, setFailed} from '@actions/core'
+
+import {generate} from './generator'
+import {EnvName} from './typings'
 
 async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+    const url = getInput('server_url')
+    const envName = EnvName.parse(getInput('env_name'))
+    const configPath = getInput('config_path')
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    await generate(url, envName, configPath)
 
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+    debug(`Generation complete.`)
+
+    // setOutput('time', new Date().toTimeString())
+  } catch (err) {
+    if (err instanceof Error) setFailed(err.message)
   }
 }
 

@@ -1,30 +1,39 @@
-export type EnvNameType = 'dev' | 'qa' | 'prod'
+import {z} from 'zod'
 
-export interface Config {
-  serviceName: string
-  plainFiles: Record<string, string>
-  envFiles: EnvFile[]
-}
+export const EnvName = z.enum(['dev', 'qa', 'prod'])
 
-export interface EnvFile {
-  path: string
-  variables: Record<string, EnvValue>
-}
+const EnvValueExtended = z.object({
+  name: z.string(),
+  mapping: z.record(EnvName, EnvName).optional()
+})
 
-export type EnvValue =
-  | string
-  | {
-      name: string
-      mapping: Record<EnvNameType, EnvNameType>
-    }
+const EnvValue = z.union([z.string(), EnvValueExtended])
 
-export interface ServerResponseEnv {
-  id: string
-  name: string
-  services: string[]
-  dev: string
-  qa: string
-  prod: string
-  is_deprecated: boolean
-  comment?: string
-}
+export const EnvFile = z.object({
+  path: z.string(),
+  variables: z.record(z.string(), EnvValue)
+})
+
+export const Config = z.object({
+  serviceName: z.string(),
+  plainFiles: z.record(z.string(), z.string()),
+  envFiles: z.array(EnvFile)
+})
+
+const ServerResponseEnvItem = z.object({
+  id: z.string(),
+  name: z.string(),
+  services: z.array(z.string()),
+  dev: z.string(),
+  qa: z.string(),
+  prod: z.string(),
+  is_deprecated: z.boolean(),
+  comment: z.string().optional()
+})
+
+export const ServerResponseEnvList = z.array(ServerResponseEnvItem)
+
+export type ConfigType = z.infer<typeof Config>
+export type EnvFileType = z.infer<typeof EnvFile>
+export type EnvNameType = z.infer<typeof EnvName>
+export type ServerResponseEnvItemType = z.infer<typeof ServerResponseEnvItem>

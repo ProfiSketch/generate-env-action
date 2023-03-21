@@ -1,11 +1,19 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Environment files generator'
+description: 'Generate env files according to the specified config, substituting data from the configuration server'
+author: 'Yakovlev Kirill <yakovlev.kll@gmail.com>'
+
 inputs:
-  milliseconds: # change this
+  server_url:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'URL to the configuration server (with http(s))'
+  env_name:
+    required: true
+    description: 'Name of the environment, possible values are `dev`, `qa` or `prod`'
+  config_path:
+    required: false
+    description: 'Relative path from the root of your project to env-config.json file'
+    default: './.github/env-config.json'
+
 runs:
   using: 'node16'
   main: 'dist/index.js'

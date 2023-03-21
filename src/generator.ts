@@ -1,50 +1,63 @@
-import * as core from '@actions/core'
-import PocketBase from 'pocketbase'
-import fs from 'fs'
+/* eslint-disable sort-imports */
 
-import {Config, EnvNameType, ServerResponseEnv, EnvFile} from './typings'
+import fs from 'fs'
+import PocketBase from 'pocketbase'
+import {setFailed, warning} from '@actions/core'
+
+import {
+  ConfigType,
+  EnvFileType,
+  EnvNameType,
+  ServerResponseEnvList,
+  ServerResponseEnvItemType
+} from './typings'
 import {getConfig} from './config'
 
 export async function generate(
   serverUrl: string,
   envName: EnvNameType,
   configPath: string
-) {
-  const {serviceName, plainFiles, envFiles} = getConfig(configPath)
-
+): Promise<void> {
   const pb = new PocketBase(serverUrl)
 
   try {
+    const {serviceName, plainFiles, envFiles} = getConfig(configPath)
     // fetch a paginated records list
-    const arr = (await pb.collection('env').getFullList({
+    const response = await pb.collection('env').getFullList({
       filter: `services ?~ "${serviceName}"`,
       sort: 'name'
-    })) as ServerResponseEnv[]
+    })
+
+    const arr = ServerResponseEnvList.parse(response)
+
+    if (!arr) {
+      throw Error('Invalid config server response')
+    }
 
     consoleDeprecatedVariables(arr)
     generatePlainFiles(arr, plainFiles, envName)
-    generateEnvFiles(arr, envFiles)
+    generateEnvFiles(arr, envFiles, envName)
   } catch (err) {
-    core.setFailed(String(err))
+    if (err instanceof Error) setFailed(err.message)
   }
 }
 
 function generatePlainFiles(
-  envsArr: ServerResponseEnv[],
-  plainFiles: Config['plainFiles'],
+  envsArr: ServerResponseEnvItemType[],
+  plainFiles: ConfigType['plainFiles'],
   envName: EnvNameType
-) {
+): void {
   for (const key in plainFiles) {
     if (Object.hasOwnProperty.call(plainFiles, key)) {
       const path = plainFiles[key]
-      const envVar = envsArr.find(el => el.name == key)
+      const envVar = envsArr.find(el => el.name === key)
 
       if (envVar) {
         // TODO: handle envName overload
         const text = envVar[envName]
         fs.writeFileSync(path, text)
       } else {
-        console.warn(
+        warning(
           `🚧 MISSING VARIABLE - '${key}', file generation skipped (${path})`
         )
       }
@@ -53,19 +66,20 @@ function generatePlainFiles(
 }
 
 function generateEnvFiles(
-  envsArr: ServerResponseEnv[],
-  envFiles: Config['envFiles']
-) {
+  envsArr: ServerResponseEnvItemType[],
+  envFiles: ConfigType['envFiles'],
+  envName: EnvNameType
+): void {
   for (const file of envFiles) {
-    generateEnvFile(envsArr, file)
+    generateEnvFile(envsArr, file, envName)
   }
 }
 
 function generateEnvFile(
-  envsArr: ServerResponseEnv[],
-  envFile: EnvFile,
+  envsArr: ServerResponseEnvItemType[],
+  envFile: EnvFileType,
   envName: EnvNameType
-) {
+): void {
   const {path, variables} = envFile
   fs.writeFileSync(path, '')
 
@@ -73,18 +87,19 @@ function generateEnvFile(
     if (Object.hasOwnProperty.call(variables, configVar)) {
       const configVal = variables[configVar]
 
-      const envVar = envsArr.find(el => el.name == configVar)
+      const envVar = envsArr.find(el => el.name === configVar)
 
       if (envVar) {
         if (typeof configVal === 'string') {
           fs.appendFileSync(path, `${configVal}=${envVar[envName]}\n`)
         } else {
           const {name, mapping} = configVal
-          const env = envName in mapping ? mapping[envName] : envName
+          const env =
+            mapping && envName in mapping ? mapping[envName]! : envName
           fs.appendFileSync(path, `${name}=${envVar[env]}\n`)
         }
       } else {
-        console.warn(
+        warning(
           `🚧 MISSING VARIABLE - '${configVar}', file generation skipped (${path})`
         )
       }
@@ -92,10 +107,12 @@ function generateEnvFile(
   }
 }
 
-function consoleDeprecatedVariables(envsArr: ServerResponseEnv[]): void {
+function consoleDeprecatedVariables(
+  envsArr: ServerResponseEnvItemType[]
+): void {
   for (const el of envsArr) {
     if (el.is_deprecated) {
-      console.warn(`🚧 '${el.name}' is DEPRECATED:`, el.comment)
+      warning(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`)
     }
   }
 }
