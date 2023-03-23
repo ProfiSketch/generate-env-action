@@ -1,4 +1,4 @@
-FROM node:18.15-alpine
+FROM node:16.13-alpine
 
 # Dependencies
 RUN apk add --no-cache ca-certificates git
