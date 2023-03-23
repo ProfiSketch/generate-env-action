@@ -1,8 +1,14 @@
 # ProfiSketch: .env generator action
 
-This action allows to generate necessary environment files for your projects.
+This action allows to generate necessary environment files for your projects from a PocketBase server. The server must contain `env` collection with necessary columns `name`, `services` (select type), `dev`, `qa`, `prod`. Also you can specify `is_deprecated` (boolean) and `comment` columns.
 
-First step, add this action to your workflow
+🚨 Beware that the action overwrites the contents of the files that are specified in the config!
+
+Setup is done in three steps:
+
+1. Add `CONFIG_SERVER_URL` variable to you repository secrets.
+
+2. Add action to your workflow
 
 ```yaml
 name: Workflow name
@@ -24,7 +30,7 @@ jobs:
           env_name: dev
 ```
 
-Second step, configure env generation by creating `.github/env-config.json` file with following content
+3. Configure env generation by creating `.github/env-config.json` file with the following content
 
 ```json
 {
@@ -56,13 +62,15 @@ Second step, configure env generation by creating `.github/env-config.json` file
 }
 ```
 
-There are several parts in example `.json` file above:
+There are several parts in example file above:
 
 - `serviceName` -- name of the service from `services` column. The script will fetch the list of variables only with matching service name
 
-- `plainFiles` -- this section allows you to save variables from your server into separate files without any additional content. Be careful because the action overwrites file content
+- `plainFiles` -- this section allows you to save variables from your server into separate files without any additional content
 
-- `envFiles` -- this section describes the content of standard .env files, such as `VAR_NAME=VAR_VALUE`. By default the action will map the values of variables from config server based on `env_name` column that is specified in your workflow. But you can adjust this behavior by using `mapping` syntax.
+- `envFiles` -- this section describes the content of standard `.env` files with content such as list of strings `VAR_NAME=VAR_VALUE`
+
+By default the action will map the values of variables from config server based on `env_name` column that is specified in your workflow. But you can adjust this behavior by using `mapping` syntax.
 
 For example, suppose you have variable `FOO` with `dev` value `VALUE1` and `prod` value `VALUE2`. If you use this action with `env_name: dev`, by default you will get `BAR=VALUE1` when using something like
 
