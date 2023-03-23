@@ -15,5 +15,5 @@ inputs:
     default: './.github/env-config.json'
 
 runs:
-  using: 'node16'
+  using: 'node18'
   main: 'dist/index.js'
