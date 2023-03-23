@@ -1,9 +1,13 @@
 /* eslint-disable sort-imports */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable import/no-commonjs */
 
 import {getInput, debug, setFailed} from '@actions/core'
 
 import {generate} from './generator'
 import {EnvName} from './typings'
+
+require('cross-fetch/polyfill')
 
 async function run(): Promise<void> {
   try {
