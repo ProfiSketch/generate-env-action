@@ -5,15 +5,17 @@
 import {getInput, debug, setFailed} from '@actions/core'
 
 import {generate} from './generator'
-import {EnvName} from './typings'
+import {EnvName, isFileExists, Url} from './typings'
 
 require('cross-fetch/polyfill')
 
 async function run(): Promise<void> {
   try {
-    const url = getInput('server_url')
+    const url = Url.parse(getInput('server_url'))
     const envName = EnvName.parse(getInput('env_name'))
     const configPath = getInput('config_path')
+
+    isFileExists(configPath)
 
     await generate(url, envName, configPath)
 
