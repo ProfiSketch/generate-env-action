@@ -35,8 +35,9 @@ export async function generate(
     }
 
     consoleDeprecatedVariables(arr)
-    generatePlainFiles(arr, plainFiles, envName)
-    generateEnvFiles(arr, envFiles, envName)
+    if (plainFiles) generatePlainFiles(arr, plainFiles, envName)
+
+    if (envFiles) generateEnvFiles(arr, envFiles, envName)
   } catch (err) {
     if (err instanceof Error) setFailed(err.message)
   }
@@ -44,7 +45,7 @@ export async function generate(
 
 function generatePlainFiles(
   envsArr: ServerResponseEnvItemType[],
-  plainFiles: ConfigType['plainFiles'],
+  plainFiles: NonNullable<ConfigType['plainFiles']>,
   envName: EnvNameType
 ): void {
   for (const key in plainFiles) {
@@ -67,7 +68,7 @@ function generatePlainFiles(
 
 function generateEnvFiles(
   envsArr: ServerResponseEnvItemType[],
-  envFiles: ConfigType['envFiles'],
+  envFiles: NonNullable<ConfigType['envFiles']>,
   envName: EnvNameType
 ): void {
   for (const file of envFiles) {

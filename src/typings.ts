@@ -16,8 +16,8 @@ export const EnvFile = z.object({
 
 export const Config = z.object({
   serviceName: z.string(),
-  plainFiles: z.record(z.string(), z.string()),
-  envFiles: z.array(EnvFile)
+  plainFiles: z.record(z.string(), z.string()).optional(),
+  envFiles: z.array(EnvFile).optional()
 })
 
 const ServerResponseEnvItem = z.object({
