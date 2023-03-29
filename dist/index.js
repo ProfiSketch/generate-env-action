@@ -74,8 +74,10 @@ function generate(serverUrl, envName, configPath) {
                 throw Error('Invalid config server response');
             }
             consoleDeprecatedVariables(arr);
-            generatePlainFiles(arr, plainFiles, envName);
-            generateEnvFiles(arr, envFiles, envName);
+            if (plainFiles)
+                generatePlainFiles(arr, plainFiles, envName);
+            if (envFiles)
+                generateEnvFiles(arr, envFiles, envName);
         }
         catch (err) {
             if (err instanceof Error)
@@ -164,9 +166,10 @@ __nccwpck_require__(2137);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const url = (0, core_1.getInput)('server_url');
+            const url = typings_1.Url.parse((0, core_1.getInput)('server_url'));
             const envName = typings_1.EnvName.parse((0, core_1.getInput)('env_name'));
             const configPath = (0, core_1.getInput)('config_path');
+            (0, typings_1.isFileExists)(configPath);
             yield (0, generator_1.generate)(url, envName, configPath);
             (0, core_1.debug)(`Generation complete.`);
             // setOutput('time', new Date().toTimeString())
@@ -183,13 +186,24 @@ run();
 /***/ }),
 
 /***/ 19:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerResponseEnvList = exports.Config = exports.EnvFile = exports.EnvName = void 0;
+exports.isFileExists = exports.ServerResponseEnvList = exports.Config = exports.EnvFile = exports.EnvName = exports.Url = void 0;
+const promises_1 = __nccwpck_require__(3292);
 const zod_1 = __nccwpck_require__(3301);
+exports.Url = zod_1.z.string().url();
 exports.EnvName = zod_1.z.enum(['dev', 'qa', 'prod']);
 const EnvValueExtended = zod_1.z.object({
     name: zod_1.z.string(),
@@ -202,8 +216,8 @@ exports.EnvFile = zod_1.z.object({
 });
 exports.Config = zod_1.z.object({
     serviceName: zod_1.z.string(),
-    plainFiles: zod_1.z.record(zod_1.z.string(), zod_1.z.string()),
-    envFiles: zod_1.z.array(exports.EnvFile)
+    plainFiles: zod_1.z.record(zod_1.z.string(), zod_1.z.string()).optional(),
+    envFiles: zod_1.z.array(exports.EnvFile).optional()
 });
 const ServerResponseEnvItem = zod_1.z.object({
     id: zod_1.z.string(),
@@ -216,6 +230,15 @@ const ServerResponseEnvItem = zod_1.z.object({
     comment: zod_1.z.string().optional()
 });
 exports.ServerResponseEnvList = zod_1.z.array(ServerResponseEnvItem);
+function isFileExists(filepath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const stat = yield (0, promises_1.lstat)(filepath);
+        if (!stat.isFile())
+            throw Error('Config file does not exist');
+        return true;
+    });
+}
+exports.isFileExists = isFileExists;
 
 
 /***/ }),
@@ -10773,6 +10796,14 @@ module.exports = require("events");
 
 "use strict";
 module.exports = require("fs");
+
+/***/ }),
+
+/***/ 3292:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs/promises");
 
 /***/ }),
 
