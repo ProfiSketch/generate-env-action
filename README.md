@@ -113,7 +113,7 @@ Also, you can specify the path to your `env-config.json` the following way
 Install the dependencies
 
 ```bash
-$ npm install
+$ npm ci
 ```
 
 Build the typescript and package it for distribution
