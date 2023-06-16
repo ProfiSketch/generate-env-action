@@ -27,7 +27,7 @@
   "dependencies": {
     "@actions/core": "^1.10.0",
     "cross-fetch": "^3.1.6",
-    "pocketbase": "^0.12.1",
+    "pocketbase": "^0.15.2",
     "zod": "^3.21.4"
   },
   "devDependencies": {
