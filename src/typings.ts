@@ -10,6 +10,11 @@ const EnvValueExtended = z.object({
   mapping: z.record(EnvName, EnvName).optional()
 })
 
+const EnvStaticFile = z.object({
+  template: z.string(),
+  output: z.string()
+})
+
 const EnvValue = z.union([z.string(), EnvValueExtended])
 
 export const EnvFile = z.object({
@@ -20,7 +25,8 @@ export const EnvFile = z.object({
 export const Config = z.object({
   serviceName: z.string(),
   plainFiles: z.record(z.string(), z.string()).optional(),
-  envFiles: z.array(EnvFile).optional()
+  envFiles: z.array(EnvFile).optional(),
+  envStaticFiles: z.array(EnvStaticFile).optional()
 })
 
 const ServerResponseEnvItem = z.object({
@@ -38,6 +44,7 @@ export const ServerResponseEnvList = z.array(ServerResponseEnvItem)
 
 export type ConfigType = z.infer<typeof Config>
 export type EnvFileType = z.infer<typeof EnvFile>
+export type EnvStaticFileType = z.infer<typeof EnvStaticFile>
 export type EnvNameType = z.infer<typeof EnvName>
 export type ServerResponseEnvItemType = z.infer<typeof ServerResponseEnvItem>
 

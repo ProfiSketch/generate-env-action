@@ -35,10 +35,23 @@ jobs:
 ```json
 {
   "serviceName": "FE",
+
   "plainFiles": {
-    "FOO_VAR_NAME_ON_CONFIG_SERVER": "path/to/file.txt",
-    "BAR_VAR_NAME_ON_CONFIG_SERVER": "path/to/file.json"
+    "path/to/file.txt": "FOO_VAR_NAME_ON_CONFIG_SERVER",
+    "path/to/file.cert": "BAR_VAR_NAME_ON_CONFIG_SERVER"
   },
+
+  "envStaticFiles": [
+    {
+      "template": "foo/bar/example.env",
+      "output": "foo/bar/.env"
+    },
+    {
+      "template": "foo/buzz/example.env",
+      "output": "foo/.env"
+    }
+  ],
+
   "envFiles": [
     {
       "path": ".env",
@@ -67,6 +80,8 @@ There are several parts in example file above:
 - `serviceName` -- name of the service from `services` column. The script will fetch the list of variables only with matching service name
 
 - `plainFiles` -- this section allows you to save variables from your server into separate files without any additional content
+
+- `envStaticFiles` -- this section allows you to substitute variables from your server into `template.env` files, similar workflow to `envsubst` program
 
 - `envFiles` -- this section describes the content of standard `.env` files with content such as list of strings `VAR_NAME=VAR_VALUE`
 

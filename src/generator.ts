@@ -9,7 +9,9 @@ import {
   EnvFileType,
   EnvNameType,
   ServerResponseEnvList,
-  ServerResponseEnvItemType
+  ServerResponseEnvItemType,
+  EnvStaticFileType,
+  isFileExists
 } from './typings'
 import {getConfig} from './config'
 
@@ -21,7 +23,8 @@ export async function generate(
   const pb = new PocketBase(serverUrl)
 
   try {
-    const {serviceName, plainFiles, envFiles} = getConfig(configPath)
+    const {serviceName, plainFiles, envFiles, envStaticFiles} =
+      getConfig(configPath)
     // fetch a paginated records list
     const response = await pb.collection('env').getFullList({
       filter: `services ?~ "${serviceName}"`,
@@ -38,6 +41,8 @@ export async function generate(
     if (plainFiles) generatePlainFiles(arr, plainFiles, envName)
 
     if (envFiles) generateEnvFiles(arr, envFiles, envName)
+
+    if (envStaticFiles) generateEnvStaticFiles(arr, envStaticFiles, envName)
   } catch (err) {
     if (err instanceof Error) setFailed(err.message)
   }
@@ -48,20 +53,17 @@ function generatePlainFiles(
   plainFiles: NonNullable<ConfigType['plainFiles']>,
   envName: EnvNameType
 ): void {
-  for (const key in plainFiles) {
-    if (Object.hasOwnProperty.call(plainFiles, key)) {
-      const path = plainFiles[key]
-      const envVar = envsArr.find(el => el.name === key)
+  for (const [path, envEntryName] of Object.entries(plainFiles)) {
+    const envVar = envsArr.find(el => el.name === envEntryName)
 
-      if (envVar) {
-        // TODO: handle envName overload
-        const text = envVar[envName]
-        fs.writeFileSync(path, text)
-      } else {
-        warning(
-          `🚧 MISSING VARIABLE - '${key}', file generation skipped (${path})`
-        )
-      }
+    if (envVar) {
+      // TODO: handle envName overload
+      const text = envVar[envName]
+      fs.writeFileSync(path, text)
+    } else {
+      warning(
+        `🚧 MISSING VARIABLE - '${path}', file generation skipped (${path})`
+      )
     }
   }
 }
@@ -74,6 +76,46 @@ function generateEnvFiles(
   for (const file of envFiles) {
     generateEnvFile(envsArr, file, envName)
   }
+}
+
+function generateEnvStaticFiles(
+  envsArr: ServerResponseEnvItemType[],
+  envStaticFiles: NonNullable<ConfigType['envStaticFiles']>,
+  envName: EnvNameType
+): void {
+  for (const file of envStaticFiles) {
+    try {
+      isFileExists(file.template)
+      generateEnvStaticFile(envsArr, file, envName)
+    } catch (err) {
+      warning(`🚧 MISSING FILE - '${file.template}', file generation skipped`)
+      continue
+    }
+  }
+}
+
+function generateEnvStaticFile(
+  envsArr: ServerResponseEnvItemType[],
+  file: EnvStaticFileType,
+  envName: EnvNameType
+): void {
+  const {template, output} = file
+
+  let content = String(fs.readFileSync(template))
+  const regexp = /\$\{([A-Z\d_]+)\}/gm
+  const matches = new Set([...content.matchAll(regexp)])
+
+  for (const match of matches) {
+    const repl = envsArr.find(el => el.name === match[1])
+
+    if (repl) {
+      content = content.replace(match[0], repl[envName])
+    } else {
+      warning(`🚧 MISSING VARIABLE - '${match[1]}', skipped`)
+    }
+  }
+
+  fs.writeFileSync(output, '')
 }
 
 function generateEnvFile(
