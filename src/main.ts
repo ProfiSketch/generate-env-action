@@ -5,11 +5,14 @@
 import {getInput, debug, setFailed} from '@actions/core'
 
 import {generate} from './generator'
-import {EnvName, isFileExists, Url} from './typings'
+import {isFileExists} from './utils'
+import {EnvName, Url} from './typings'
 
 require('cross-fetch/polyfill')
 
 async function run(): Promise<void> {
+  debug(`generate-env-action started (${process.env.npm_package_version})`)
+
   try {
     const url = Url.parse(getInput('server_url'))
     const envName = EnvName.parse(getInput('env_name'))
@@ -19,7 +22,7 @@ async function run(): Promise<void> {
 
     await generate(url, envName, configPath)
 
-    debug(`Generation complete.`)
+    debug(`generate-env-action completed`)
 
     // setOutput('time', new Date().toTimeString())
   } catch (err) {

@@ -1,4 +1,3 @@
-import {lstat} from 'fs/promises'
 import {z} from 'zod'
 
 export const Url = z.string().url()
@@ -52,11 +51,3 @@ export type EnvFileType = z.infer<typeof EnvFile>
 export type EnvStaticFileType = z.infer<typeof EnvStaticFile>
 export type EnvNameType = z.infer<typeof EnvName>
 export type ServerResponseEnvItemType = z.infer<typeof ServerResponseEnvItem>
-
-export async function isFileExists(filepath: string): Promise<boolean> {
-  const stat = await lstat(filepath)
-
-  if (!stat.isFile()) throw Error('Config file does not exist')
-
-  return true
-}

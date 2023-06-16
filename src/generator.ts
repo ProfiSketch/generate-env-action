@@ -10,9 +10,9 @@ import {
   EnvNameType,
   ServerResponseEnvList,
   ServerResponseEnvItemType,
-  EnvStaticFileType,
-  isFileExists
+  EnvStaticFileType
 } from './typings'
+import {isFileExists} from './utils'
 import {getConfig} from './config'
 
 export async function generate(
