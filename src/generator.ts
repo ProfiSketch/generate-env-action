@@ -36,9 +36,9 @@ class EnvGenerator {
   async generate() {
     try {
       await this.fetchEnv()
-      this.consoleDeprecatedVariables()
+
       this.generatePlainFiles()
-      this.generateEnvStaticFiles()
+      this.generateEnvTemplateFiles()
     } catch (err) {
       if (err instanceof Error) setFailed(err.message)
     }
@@ -70,8 +70,10 @@ class EnvGenerator {
       const envVar = envsArr.find(el => el.name === envVarName)
 
       if (envVar) {
-        // TODO: handle envName overload
+        this.checkIfDeprecated(envVar)
+
         const text = envVar[envName]
+
         fs.writeFileSync(output, text)
       } else {
         warning(
@@ -81,7 +83,7 @@ class EnvGenerator {
     }
   }
 
-  private generateEnvStaticFiles() {
+  private generateEnvTemplateFiles() {
     if (!this.config.envTemplateFiles) return
 
     for (const file of this.config.envTemplateFiles) {
@@ -89,7 +91,7 @@ class EnvGenerator {
       try {
         isFileExists(file.template)
         const content = String(fs.readFileSync(file.template))
-        const res = this.generateEnvStaticFile(content)
+        const res = this.generateEnvTemplateFile(content)
         fs.writeFileSync(file.output, res)
       } catch (err) {
         warning(
@@ -100,7 +102,7 @@ class EnvGenerator {
     }
   }
 
-  private generateEnvStaticFile(content: string) {
+  private generateEnvTemplateFile(content: string) {
     let res = content
 
     const matches = new Set([...res.matchAll(this.subsRegexp)])
@@ -126,14 +128,16 @@ class EnvGenerator {
 
     const {name, variants} = this.parseEnvSub(envSubs)
 
-    const env = envsArr.find(el => el.name === name)
+    const envVar = envsArr.find(el => el.name === name)
 
-    if (env) {
+    if (envVar) {
+      this.checkIfDeprecated(envVar)
+
       if (variants && envName in variants) {
         const mapped = variants[envName]
-        return env[mapped]
+        return envVar[mapped]
       }
-      return env[envName]
+      return envVar[envName]
     }
 
     return undefined
@@ -165,11 +169,11 @@ class EnvGenerator {
     return parsed
   }
 
-  private consoleDeprecatedVariables() {
-    for (const el of this.envsArr) {
-      if (el.is_deprecated) {
-        warning(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`)
-      }
+  private checkIfDeprecated(envsArrItem: ServerResponseEnvItemType) {
+    if (envsArrItem.is_deprecated) {
+      warning(
+        `🚧 '${envsArrItem.name}' is DEPRECATED: '${envsArrItem.comment}'`
+      )
     }
   }
 }
