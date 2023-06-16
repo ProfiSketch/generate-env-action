@@ -15,6 +15,11 @@ const EnvStaticFile = z.object({
   output: z.string()
 })
 
+const PlainFile = z.object({
+  envVarName: z.string(),
+  output: z.string()
+})
+
 const EnvValue = z.union([z.string(), EnvValueExtended])
 
 export const EnvFile = z.object({
@@ -24,7 +29,7 @@ export const EnvFile = z.object({
 
 export const Config = z.object({
   serviceName: z.string(),
-  plainFiles: z.record(z.string(), z.string()).optional(),
+  plainFiles: z.array(PlainFile).optional(),
   envFiles: z.array(EnvFile).optional(),
   envStaticFiles: z.array(EnvStaticFile).optional()
 })

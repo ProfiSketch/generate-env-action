@@ -36,10 +36,16 @@ jobs:
 {
   "serviceName": "FE",
 
-  "plainFiles": {
-    "path/to/file.txt": "FOO_VAR_NAME_ON_CONFIG_SERVER",
-    "path/to/file.cert": "BAR_VAR_NAME_ON_CONFIG_SERVER"
-  },
+  "plainFiles": [
+    {
+      "envVarName": "FOO_VAR_NAME_ON_CONFIG_SERVER",
+      "output": "path/to/file.txt"
+    },
+    {
+      "envVarName": "BAR_VAR_NAME_ON_CONFIG_SERVER",
+      "output": "path/to/file.cert"
+    }
+  ],
 
   "envStaticFiles": [
     {

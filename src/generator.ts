@@ -53,16 +53,17 @@ function generatePlainFiles(
   plainFiles: NonNullable<ConfigType['plainFiles']>,
   envName: EnvNameType
 ): void {
-  for (const [path, envEntryName] of Object.entries(plainFiles)) {
-    const envVar = envsArr.find(el => el.name === envEntryName)
+  for (const entry of plainFiles) {
+    const {output, envVarName} = entry
+    const envVar = envsArr.find(el => el.name === envVarName)
 
     if (envVar) {
       // TODO: handle envName overload
       const text = envVar[envName]
-      fs.writeFileSync(path, text)
+      fs.writeFileSync(output, text)
     } else {
       warning(
-        `🚧 MISSING VARIABLE - '${path}', file generation skipped (${path})`
+        `🚧 MISSING VARIABLE - '${envVarName}', file generation skipped (${output})`
       )
     }
   }
@@ -88,7 +89,9 @@ function generateEnvStaticFiles(
       isFileExists(file.template)
       generateEnvStaticFile(envsArr, file, envName)
     } catch (err) {
-      warning(`🚧 MISSING FILE - '${file.template}', file generation skipped`)
+      warning(
+        `🚧 MISSING TEMPLATE - '${file.template}', file generation skipped`
+      )
       continue
     }
   }
@@ -111,7 +114,9 @@ function generateEnvStaticFile(
     if (repl) {
       content = content.replace(match[0], repl[envName])
     } else {
-      warning(`🚧 MISSING VARIABLE - '${match[1]}', skipped`)
+      warning(
+        `🚧 MISSING VARIABLE - '${match[1]}', skipped (template '${file.template}')`
+      )
     }
   }
 
