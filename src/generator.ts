@@ -6,28 +6,48 @@ import {setFailed, warning} from '@actions/core'
 
 import {
   ConfigType,
-  EnvFileType,
   EnvNameType,
   ServerResponseEnvList,
   ServerResponseEnvItemType,
-  EnvStaticFileType
+  EnvName
 } from './typings'
 import {isFileExists} from './utils'
 import {getConfig} from './config'
 
-export async function generate(
-  serverUrl: string,
-  envName: EnvNameType,
-  configPath: string
-): Promise<void> {
-  const pb = new PocketBase(serverUrl)
+class EnvGenerator {
+  private subsRegexp = /\$\{([A-z\d_;<-]+)\}/gm
 
-  try {
-    const {serviceName, plainFiles, envFiles, envStaticFiles} =
-      getConfig(configPath)
+  private pb: PocketBase
+  private config: ConfigType
+
+  private envName: EnvNameType
+
+  private envsArr: ServerResponseEnvItemType[] = []
+
+  private _currFilename: string = ''
+
+  constructor(serverUrl: string, envName: EnvNameType, configPath: string) {
+    this.pb = new PocketBase(serverUrl)
+    this.envName = envName
+
+    this.config = getConfig(configPath)
+  }
+
+  async generate() {
+    try {
+      await this.fetchEnv()
+      this.consoleDeprecatedVariables()
+      this.generatePlainFiles()
+      this.generateEnvStaticFiles()
+    } catch (err) {
+      if (err instanceof Error) setFailed(err.message)
+    }
+  }
+
+  private async fetchEnv() {
     // fetch a paginated records list
-    const response = await pb.collection('env').getFullList({
-      filter: `services ?~ "${serviceName}"`,
+    const response = await this.pb.collection('env').getFullList({
+      filter: `services ?~ "${this.config.serviceName}"`,
       sort: 'name'
     })
 
@@ -37,130 +57,121 @@ export async function generate(
       throw Error('Invalid config server response')
     }
 
-    consoleDeprecatedVariables(arr)
-    if (plainFiles) generatePlainFiles(arr, plainFiles, envName)
-
-    if (envFiles) generateEnvFiles(arr, envFiles, envName)
-
-    if (envStaticFiles) generateEnvStaticFiles(arr, envStaticFiles, envName)
-  } catch (err) {
-    if (err instanceof Error) setFailed(err.message)
-  }
-}
-
-function generatePlainFiles(
-  envsArr: ServerResponseEnvItemType[],
-  plainFiles: NonNullable<ConfigType['plainFiles']>,
-  envName: EnvNameType
-): void {
-  for (const entry of plainFiles) {
-    const {output, envVarName} = entry
-    const envVar = envsArr.find(el => el.name === envVarName)
-
-    if (envVar) {
-      // TODO: handle envName overload
-      const text = envVar[envName]
-      fs.writeFileSync(output, text)
-    } else {
-      warning(
-        `🚧 MISSING VARIABLE - '${envVarName}', file generation skipped (${output})`
-      )
-    }
-  }
-}
-
-function generateEnvFiles(
-  envsArr: ServerResponseEnvItemType[],
-  envFiles: NonNullable<ConfigType['envFiles']>,
-  envName: EnvNameType
-): void {
-  for (const file of envFiles) {
-    generateEnvFile(envsArr, file, envName)
-  }
-}
-
-function generateEnvStaticFiles(
-  envsArr: ServerResponseEnvItemType[],
-  envStaticFiles: NonNullable<ConfigType['envStaticFiles']>,
-  envName: EnvNameType
-): void {
-  for (const file of envStaticFiles) {
-    try {
-      isFileExists(file.template)
-      generateEnvStaticFile(envsArr, file, envName)
-    } catch (err) {
-      warning(
-        `🚧 MISSING TEMPLATE - '${file.template}', file generation skipped`
-      )
-      continue
-    }
-  }
-}
-
-function generateEnvStaticFile(
-  envsArr: ServerResponseEnvItemType[],
-  file: EnvStaticFileType,
-  envName: EnvNameType
-): void {
-  const {template, output} = file
-
-  let content = String(fs.readFileSync(template))
-  const regexp = /\$\{([A-Z\d_]+)\}/gm
-  const matches = new Set([...content.matchAll(regexp)])
-
-  for (const match of matches) {
-    const repl = envsArr.find(el => el.name === match[1])
-
-    if (repl) {
-      content = content.replace(match[0], repl[envName])
-    } else {
-      warning(
-        `🚧 MISSING VARIABLE - '${match[1]}', skipped (template '${file.template}')`
-      )
-    }
+    this.envsArr = ServerResponseEnvList.parse(response)
   }
 
-  fs.writeFileSync(output, '')
-}
+  private generatePlainFiles() {
+    if (!this.config.plainFiles) return
 
-function generateEnvFile(
-  envsArr: ServerResponseEnvItemType[],
-  envFile: EnvFileType,
-  envName: EnvNameType
-): void {
-  const {path, variables} = envFile
-  fs.writeFileSync(path, '')
+    const {envName, envsArr} = this
 
-  for (const configVar in variables) {
-    if (Object.hasOwnProperty.call(variables, configVar)) {
-      const configVal = variables[configVar]
-
-      const envVar = envsArr.find(el => el.name === configVar)
+    for (const entry of this.config.plainFiles) {
+      const {output, envVarName} = entry
+      const envVar = envsArr.find(el => el.name === envVarName)
 
       if (envVar) {
-        if (typeof configVal === 'string') {
-          fs.appendFileSync(path, `${configVal}=${envVar[envName]}\n`)
-        } else {
-          const {name, mapping} = configVal
-          const env =
-            mapping && envName in mapping ? mapping[envName]! : envName
-          fs.appendFileSync(path, `${name}=${envVar[env]}\n`)
-        }
+        // TODO: handle envName overload
+        const text = envVar[envName]
+        fs.writeFileSync(output, text)
       } else {
         warning(
-          `🚧 MISSING VARIABLE - '${configVar}', file generation skipped (${path})`
+          `🚧 MISSING VARIABLE - '${envVarName}', file generation skipped (${output})`
         )
+      }
+    }
+  }
+
+  private generateEnvStaticFiles() {
+    if (!this.config.envTemplateFiles) return
+
+    for (const file of this.config.envTemplateFiles) {
+      this._currFilename = file.template
+      try {
+        isFileExists(file.template)
+        const content = String(fs.readFileSync(file.template))
+        const res = this.generateEnvStaticFile(content)
+        fs.writeFileSync(file.output, res)
+      } catch (err) {
+        warning(
+          `🚧 MISSING TEMPLATE - '${file.template}', file generation skipped`
+        )
+        continue
+      }
+    }
+  }
+
+  private generateEnvStaticFile(content: string) {
+    let res = content
+
+    const matches = new Set([...res.matchAll(this.subsRegexp)])
+
+    for (const match of matches) {
+      const [subs, name] = match
+      const repl = this.getEnvSubstitution(name)
+
+      if (repl) {
+        res = res.replace(subs, repl)
+      } else {
+        warning(
+          `🚧 MISSING VARIABLE - '${name}', skipped (template '${this._currFilename}')`
+        )
+      }
+    }
+
+    return res
+  }
+
+  private getEnvSubstitution(envSubs: string) {
+    const {envName, envsArr} = this
+
+    const {name, variants} = this.parseEnvSub(envSubs)
+
+    const env = envsArr.find(el => el.name === name)
+
+    if (env) {
+      if (variants && envName in variants) {
+        const mapped = variants[envName]
+        return env[mapped]
+      }
+      return env[envName]
+    }
+
+    return undefined
+  }
+
+  private parseEnvSub(envSub: string) {
+    const [name, ...rest] = envSub.split(';')
+
+    const parsed: {name: string; variants?: Record<EnvNameType, EnvNameType>} =
+      {name}
+
+    if (rest.length > 0) {
+      parsed.variants = {} as Record<EnvNameType, EnvNameType>
+
+      const tuples = rest.map(el => el.split('<-'))
+      tuples.forEach(([fromEnv, toEnv]) => {
+        try {
+          const fromEnvParsed = EnvName.parse(fromEnv)
+          const toEnvParsed = EnvName.parse(toEnv)
+          parsed.variants![fromEnvParsed] = toEnvParsed
+        } catch (err) {
+          warning(
+            `🚧 UNKNOWN ENV NAMES - ['${fromEnv}', '${fromEnv}'], skipped (template '${this._currFilename}')`
+          )
+        }
+      })
+    }
+
+    return parsed
+  }
+
+  private consoleDeprecatedVariables() {
+    for (const el of this.envsArr) {
+      if (el.is_deprecated) {
+        warning(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`)
       }
     }
   }
 }
 
-function consoleDeprecatedVariables(
-  envsArr: ServerResponseEnvItemType[]
-): void {
-  for (const el of envsArr) {
-    if (el.is_deprecated) {
-      warning(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`)
-    }
-  }
-}
+export default EnvGenerator

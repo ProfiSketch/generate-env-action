@@ -4,12 +4,7 @@ export const Url = z.string().url()
 
 export const EnvName = z.enum(['dev', 'qa', 'prod'])
 
-const EnvValueExtended = z.object({
-  name: z.string(),
-  mapping: z.record(EnvName, EnvName).optional()
-})
-
-const EnvStaticFile = z.object({
+const EnvTemplateFile = z.object({
   template: z.string(),
   output: z.string()
 })
@@ -19,18 +14,10 @@ const PlainFile = z.object({
   output: z.string()
 })
 
-const EnvValue = z.union([z.string(), EnvValueExtended])
-
-export const EnvFile = z.object({
-  path: z.string(),
-  variables: z.record(z.string(), EnvValue)
-})
-
 export const Config = z.object({
   serviceName: z.string(),
   plainFiles: z.array(PlainFile).optional(),
-  envFiles: z.array(EnvFile).optional(),
-  envStaticFiles: z.array(EnvStaticFile).optional()
+  envTemplateFiles: z.array(EnvTemplateFile).optional()
 })
 
 const ServerResponseEnvItem = z.object({
@@ -47,7 +34,6 @@ const ServerResponseEnvItem = z.object({
 export const ServerResponseEnvList = z.array(ServerResponseEnvItem)
 
 export type ConfigType = z.infer<typeof Config>
-export type EnvFileType = z.infer<typeof EnvFile>
-export type EnvStaticFileType = z.infer<typeof EnvStaticFile>
+export type EnvTemplateFileType = z.infer<typeof EnvTemplateFile>
 export type EnvNameType = z.infer<typeof EnvName>
 export type ServerResponseEnvItemType = z.infer<typeof ServerResponseEnvItem>

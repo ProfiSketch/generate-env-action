@@ -4,7 +4,7 @@
 
 import {getInput, debug, setFailed} from '@actions/core'
 
-import {generate} from './generator'
+import EnvGenerator from './generator'
 import {isFileExists} from './utils'
 import {EnvName, Url} from './typings'
 
@@ -20,7 +20,8 @@ async function run(): Promise<void> {
 
     isFileExists(configPath)
 
-    await generate(url, envName, configPath)
+    const gen = new EnvGenerator(url, envName, configPath)
+    await gen.generate()
 
     debug(`generate-env-action completed`)
 

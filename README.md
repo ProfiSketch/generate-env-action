@@ -36,18 +36,7 @@ jobs:
 {
   "serviceName": "FE",
 
-  "plainFiles": [
-    {
-      "envVarName": "FOO_VAR_NAME_ON_CONFIG_SERVER",
-      "output": "path/to/file.txt"
-    },
-    {
-      "envVarName": "BAR_VAR_NAME_ON_CONFIG_SERVER",
-      "output": "path/to/file.cert"
-    }
-  ],
-
-  "envStaticFiles": [
+  "envTemplateFiles": [
     {
       "template": "foo/bar/example.env",
       "output": "foo/bar/.env"
@@ -58,63 +47,50 @@ jobs:
     }
   ],
 
-  "envFiles": [
+  "plainFiles": [
     {
-      "path": ".env",
-      "variables": {
-        "FOO_VAR_NAME": "FOO_VAR_NAME",
-        "BAR_VAR_NAME_ON_CONFIG_SERVER": "BUZZ_VAR_NAME_IN_PROJECT",
-        "MAPPED_VARIABLE_ON_CONFIG_SERVER": {
-          "name": "MAPPED_VARIABLE_IN_PROJECT",
-          "mapping": {"dev": "qa"}
-        }
-      }
+      "envVarName": "FOO_VAR_NAME_ON_CONFIG_SERVER",
+      "output": "path/to/file.txt"
     },
     {
-      "path": "nested/folder/.env",
-      "variables": {
-        "VAR_NAME_1": "VAR_NAME_1",
-        "VAR_NAME_2": "VAR_NAME_3"
-      }
+      "envVarName": "BAR_VAR_NAME_ON_CONFIG_SERVER",
+      "output": "path/to/file.cert"
     }
   ]
 }
 ```
 
+## Config file description
+
 There are several parts in example file above:
 
-- `serviceName` -- name of the service from `services` column. The script will fetch the list of variables only with matching service name
+- `serviceName` -- name of the service from `services` column. The script will fetch the list of variables only with matching service name.
 
-- `plainFiles` -- this section allows you to save variables from your server into separate files without any additional content
+- `envTemplateFiles` -- this section allows you to substitute variables from your server into `template.env` files, similar workflow to `envsubst` program.
 
-- `envStaticFiles` -- this section allows you to substitute variables from your server into `template.env` files, similar workflow to `envsubst` program
+- `plainFiles` -- this section allows you to fill files with just a content of specified variable only (useful for certificates generation).
 
-- `envFiles` -- this section describes the content of standard `.env` files with content such as list of strings `VAR_NAME=VAR_VALUE`
+### Mapping syntax
 
 By default the action will map the values of variables from config server based on `env_name` column that is specified in your workflow. But you can adjust this behavior by using `mapping` syntax.
 
-For example, suppose you have variable `FOO` with `dev` value `VALUE1` and `prod` value `VALUE2`. If you use this action with `env_name: dev`, by default you will get `BAR=VALUE1` when using something like
+For example, suppose you have variable `FOO` with `dev` value `VALUE1` and `prod` value `VALUE2`. If you use this action with `env_name: dev`, by default you will get `BAR=VALUE1` using the following in your `template.env` file
 
-```json
-{
-  "FOO": "BAR"
-}
+```env
+BAR=${FOO}
 ```
 
 But if you add
 
-```json
-{
-  "FOO": {
-    "name": "BAR",
-    "mapping": {"dev": "prod"}
-  }
-}
+```env
+BAR=${FOO;dev<-prod}
 ```
 
-The output will be `BAR=VALUE2`.
+The resulting env file will contain `BAR=VALUE2` even when `env_name` is equal to `dev`.
 
-Also, you can specify the path to your `env-config.json` the following way
+### Specify path to config
+
+You can specify the path to your `env-config.json` the following way
 
 ```yaml
 # ...
