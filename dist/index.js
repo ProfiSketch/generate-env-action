@@ -53,119 +53,139 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generate = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const pocketbase_1 = __importDefault(__nccwpck_require__(6365));
 const core_1 = __nccwpck_require__(2186);
 const typings_1 = __nccwpck_require__(19);
 const utils_1 = __nccwpck_require__(918);
 const config_1 = __nccwpck_require__(88);
-function generate(serverUrl, envName, configPath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const pb = new pocketbase_1.default(serverUrl);
-        try {
-            const { serviceName, plainFiles, envFiles, envStaticFiles } = (0, config_1.getConfig)(configPath);
+class EnvGenerator {
+    constructor(serverUrl, envName, configPath) {
+        this.subsRegexp = /\$\{([A-z\d_;<-]+)\}/gm;
+        this.envsArr = [];
+        this._currFilename = '';
+        this.pb = new pocketbase_1.default(serverUrl);
+        this.envName = envName;
+        this.config = (0, config_1.getConfig)(configPath);
+    }
+    generate() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.fetchEnv();
+                this.consoleDeprecatedVariables();
+                this.generatePlainFiles();
+                this.generateEnvStaticFiles();
+            }
+            catch (err) {
+                if (err instanceof Error)
+                    (0, core_1.setFailed)(err.message);
+            }
+        });
+    }
+    fetchEnv() {
+        return __awaiter(this, void 0, void 0, function* () {
             // fetch a paginated records list
-            const response = yield pb.collection('env').getFullList({
-                filter: `services ?~ "${serviceName}"`,
+            const response = yield this.pb.collection('env').getFullList({
+                filter: `services ?~ "${this.config.serviceName}"`,
                 sort: 'name'
             });
             const arr = typings_1.ServerResponseEnvList.parse(response);
             if (!arr) {
                 throw Error('Invalid config server response');
             }
-            consoleDeprecatedVariables(arr);
-            if (plainFiles)
-                generatePlainFiles(arr, plainFiles, envName);
-            if (envFiles)
-                generateEnvFiles(arr, envFiles, envName);
-            if (envStaticFiles)
-                generateEnvStaticFiles(arr, envStaticFiles, envName);
-        }
-        catch (err) {
-            if (err instanceof Error)
-                (0, core_1.setFailed)(err.message);
-        }
-    });
-}
-exports.generate = generate;
-function generatePlainFiles(envsArr, plainFiles, envName) {
-    for (const entry of plainFiles) {
-        const { output, envVarName } = entry;
-        const envVar = envsArr.find(el => el.name === envVarName);
-        if (envVar) {
-            // TODO: handle envName overload
-            const text = envVar[envName];
-            fs_1.default.writeFileSync(output, text);
-        }
-        else {
-            (0, core_1.warning)(`🚧 MISSING VARIABLE - '${envVarName}', file generation skipped (${output})`);
-        }
+            this.envsArr = typings_1.ServerResponseEnvList.parse(response);
+        });
     }
-}
-function generateEnvFiles(envsArr, envFiles, envName) {
-    for (const file of envFiles) {
-        generateEnvFile(envsArr, file, envName);
-    }
-}
-function generateEnvStaticFiles(envsArr, envStaticFiles, envName) {
-    for (const file of envStaticFiles) {
-        try {
-            (0, utils_1.isFileExists)(file.template);
-            generateEnvStaticFile(envsArr, file, envName);
-        }
-        catch (err) {
-            (0, core_1.warning)(`🚧 MISSING TEMPLATE - '${file.template}', file generation skipped`);
-            continue;
-        }
-    }
-}
-function generateEnvStaticFile(envsArr, file, envName) {
-    const { template, output } = file;
-    let content = String(fs_1.default.readFileSync(template));
-    const regexp = /\$\{([A-Z\d_]+)\}/gm;
-    const matches = new Set([...content.matchAll(regexp)]);
-    for (const match of matches) {
-        const repl = envsArr.find(el => el.name === match[1]);
-        if (repl) {
-            content = content.replace(match[0], repl[envName]);
-        }
-        else {
-            (0, core_1.warning)(`🚧 MISSING VARIABLE - '${match[1]}', skipped (template '${file.template}')`);
-        }
-    }
-    fs_1.default.writeFileSync(output, '');
-}
-function generateEnvFile(envsArr, envFile, envName) {
-    const { path, variables } = envFile;
-    fs_1.default.writeFileSync(path, '');
-    for (const configVar in variables) {
-        if (Object.hasOwnProperty.call(variables, configVar)) {
-            const configVal = variables[configVar];
-            const envVar = envsArr.find(el => el.name === configVar);
+    generatePlainFiles() {
+        if (!this.config.plainFiles)
+            return;
+        const { envName, envsArr } = this;
+        for (const entry of this.config.plainFiles) {
+            const { output, envVarName } = entry;
+            const envVar = envsArr.find(el => el.name === envVarName);
             if (envVar) {
-                if (typeof configVal === 'string') {
-                    fs_1.default.appendFileSync(path, `${configVal}=${envVar[envName]}\n`);
-                }
-                else {
-                    const { name, mapping } = configVal;
-                    const env = mapping && envName in mapping ? mapping[envName] : envName;
-                    fs_1.default.appendFileSync(path, `${name}=${envVar[env]}\n`);
-                }
+                // TODO: handle envName overload
+                const text = envVar[envName];
+                fs_1.default.writeFileSync(output, text);
             }
             else {
-                (0, core_1.warning)(`🚧 MISSING VARIABLE - '${configVar}', file generation skipped (${path})`);
+                (0, core_1.warning)(`🚧 MISSING VARIABLE - '${envVarName}', file generation skipped (${output})`);
+            }
+        }
+    }
+    generateEnvStaticFiles() {
+        if (!this.config.envTemplateFiles)
+            return;
+        for (const file of this.config.envTemplateFiles) {
+            this._currFilename = file.template;
+            try {
+                (0, utils_1.isFileExists)(file.template);
+                const content = String(fs_1.default.readFileSync(file.template));
+                const res = this.generateEnvStaticFile(content);
+                fs_1.default.writeFileSync(file.output, res);
+            }
+            catch (err) {
+                (0, core_1.warning)(`🚧 MISSING TEMPLATE - '${file.template}', file generation skipped`);
+                continue;
+            }
+        }
+    }
+    generateEnvStaticFile(content) {
+        let res = content;
+        const matches = new Set([...res.matchAll(this.subsRegexp)]);
+        for (const match of matches) {
+            const [subs, name] = match;
+            const repl = this.getEnvSubstitution(name);
+            if (repl) {
+                res = res.replace(subs, repl);
+            }
+            else {
+                (0, core_1.warning)(`🚧 MISSING VARIABLE - '${name}', skipped (template '${this._currFilename}')`);
+            }
+        }
+        return res;
+    }
+    getEnvSubstitution(envSubs) {
+        const { envName, envsArr } = this;
+        const { name, variants } = this.parseEnvSub(envSubs);
+        const env = envsArr.find(el => el.name === name);
+        if (env) {
+            if (variants && envName in variants) {
+                const mapped = variants[envName];
+                return env[mapped];
+            }
+            return env[envName];
+        }
+        return undefined;
+    }
+    parseEnvSub(envSub) {
+        const [name, ...rest] = envSub.split(';');
+        const parsed = { name };
+        if (rest.length > 0) {
+            parsed.variants = {};
+            const tuples = rest.map(el => el.split('<-'));
+            tuples.forEach(([fromEnv, toEnv]) => {
+                try {
+                    const fromEnvParsed = typings_1.EnvName.parse(fromEnv);
+                    const toEnvParsed = typings_1.EnvName.parse(toEnv);
+                    parsed.variants[fromEnvParsed] = toEnvParsed;
+                }
+                catch (err) {
+                    (0, core_1.warning)(`🚧 UNKNOWN ENV NAMES - ['${fromEnv}', '${fromEnv}'], skipped (template '${this._currFilename}')`);
+                }
+            });
+        }
+        return parsed;
+    }
+    consoleDeprecatedVariables() {
+        for (const el of this.envsArr) {
+            if (el.is_deprecated) {
+                (0, core_1.warning)(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`);
             }
         }
     }
 }
-function consoleDeprecatedVariables(envsArr) {
-    for (const el of envsArr) {
-        if (el.is_deprecated) {
-            (0, core_1.warning)(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`);
-        }
-    }
-}
+exports["default"] = EnvGenerator;
 
 
 /***/ }),
@@ -187,9 +207,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core_1 = __nccwpck_require__(2186);
-const generator_1 = __nccwpck_require__(6476);
+const generator_1 = __importDefault(__nccwpck_require__(6476));
 const utils_1 = __nccwpck_require__(918);
 const typings_1 = __nccwpck_require__(19);
 __nccwpck_require__(2137);
@@ -201,7 +224,8 @@ function run() {
             const envName = typings_1.EnvName.parse((0, core_1.getInput)('env_name'));
             const configPath = (0, core_1.getInput)('config_path');
             (0, utils_1.isFileExists)(configPath);
-            yield (0, generator_1.generate)(url, envName, configPath);
+            const gen = new generator_1.default(url, envName, configPath);
+            yield gen.generate();
             (0, core_1.debug)(`generate-env-action completed`);
             // setOutput('time', new Date().toTimeString())
         }
@@ -222,15 +246,11 @@ run();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ServerResponseEnvList = exports.Config = exports.EnvFile = exports.EnvName = exports.Url = void 0;
+exports.ServerResponseEnvList = exports.Config = exports.EnvName = exports.Url = void 0;
 const zod_1 = __nccwpck_require__(3301);
 exports.Url = zod_1.z.string().url();
 exports.EnvName = zod_1.z.enum(['dev', 'qa', 'prod']);
-const EnvValueExtended = zod_1.z.object({
-    name: zod_1.z.string(),
-    mapping: zod_1.z.record(exports.EnvName, exports.EnvName).optional()
-});
-const EnvStaticFile = zod_1.z.object({
+const EnvTemplateFile = zod_1.z.object({
     template: zod_1.z.string(),
     output: zod_1.z.string()
 });
@@ -238,16 +258,10 @@ const PlainFile = zod_1.z.object({
     envVarName: zod_1.z.string(),
     output: zod_1.z.string()
 });
-const EnvValue = zod_1.z.union([zod_1.z.string(), EnvValueExtended]);
-exports.EnvFile = zod_1.z.object({
-    path: zod_1.z.string(),
-    variables: zod_1.z.record(zod_1.z.string(), EnvValue)
-});
 exports.Config = zod_1.z.object({
     serviceName: zod_1.z.string(),
     plainFiles: zod_1.z.array(PlainFile).optional(),
-    envFiles: zod_1.z.array(exports.EnvFile).optional(),
-    envStaticFiles: zod_1.z.array(EnvStaticFile).optional()
+    envTemplateFiles: zod_1.z.array(EnvTemplateFile).optional()
 });
 const ServerResponseEnvItem = zod_1.z.object({
     id: zod_1.z.string(),
