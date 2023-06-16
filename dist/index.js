@@ -72,9 +72,8 @@ class EnvGenerator {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 yield this.fetchEnv();
-                this.consoleDeprecatedVariables();
                 this.generatePlainFiles();
-                this.generateEnvStaticFiles();
+                this.generateEnvTemplateFiles();
             }
             catch (err) {
                 if (err instanceof Error)
@@ -104,7 +103,7 @@ class EnvGenerator {
             const { output, envVarName } = entry;
             const envVar = envsArr.find(el => el.name === envVarName);
             if (envVar) {
-                // TODO: handle envName overload
+                this.checkIfDeprecated(envVar);
                 const text = envVar[envName];
                 fs_1.default.writeFileSync(output, text);
             }
@@ -113,7 +112,7 @@ class EnvGenerator {
             }
         }
     }
-    generateEnvStaticFiles() {
+    generateEnvTemplateFiles() {
         if (!this.config.envTemplateFiles)
             return;
         for (const file of this.config.envTemplateFiles) {
@@ -121,7 +120,7 @@ class EnvGenerator {
             try {
                 (0, utils_1.isFileExists)(file.template);
                 const content = String(fs_1.default.readFileSync(file.template));
-                const res = this.generateEnvStaticFile(content);
+                const res = this.generateEnvTemplateFile(content);
                 fs_1.default.writeFileSync(file.output, res);
             }
             catch (err) {
@@ -130,7 +129,7 @@ class EnvGenerator {
             }
         }
     }
-    generateEnvStaticFile(content) {
+    generateEnvTemplateFile(content) {
         let res = content;
         const matches = new Set([...res.matchAll(this.subsRegexp)]);
         for (const match of matches) {
@@ -148,13 +147,14 @@ class EnvGenerator {
     getEnvSubstitution(envSubs) {
         const { envName, envsArr } = this;
         const { name, variants } = this.parseEnvSub(envSubs);
-        const env = envsArr.find(el => el.name === name);
-        if (env) {
+        const envVar = envsArr.find(el => el.name === name);
+        if (envVar) {
+            this.checkIfDeprecated(envVar);
             if (variants && envName in variants) {
                 const mapped = variants[envName];
-                return env[mapped];
+                return envVar[mapped];
             }
-            return env[envName];
+            return envVar[envName];
         }
         return undefined;
     }
@@ -177,11 +177,9 @@ class EnvGenerator {
         }
         return parsed;
     }
-    consoleDeprecatedVariables() {
-        for (const el of this.envsArr) {
-            if (el.is_deprecated) {
-                (0, core_1.warning)(`🚧 '${el.name}' is DEPRECATED: '${el.comment}'`);
-            }
+    checkIfDeprecated(envsArrItem) {
+        if (envsArrItem.is_deprecated) {
+            (0, core_1.warning)(`🚧 '${envsArrItem.name}' is DEPRECATED: '${envsArrItem.comment}'`);
         }
     }
 }
