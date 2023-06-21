@@ -247,7 +247,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerResponseEnvList = exports.Config = exports.EnvName = exports.Url = void 0;
 const zod_1 = __nccwpck_require__(3301);
 exports.Url = zod_1.z.string().url();
-exports.EnvName = zod_1.z.enum(['dev', 'qa', 'prod']);
+// TODO: Generalize env names - base env and augmented?
+exports.EnvName = zod_1.z.enum(['dev', 'qa', 'prod', 'localhost', 'technopark']);
 const EnvTemplateFile = zod_1.z.object({
     template: zod_1.z.string(),
     output: zod_1.z.string()
@@ -268,6 +269,8 @@ const ServerResponseEnvItem = zod_1.z.object({
     dev: zod_1.z.string(),
     qa: zod_1.z.string(),
     prod: zod_1.z.string(),
+    localhost: zod_1.z.string(),
+    technopark: zod_1.z.string(),
     is_deprecated: zod_1.z.boolean(),
     comment: zod_1.z.string().optional()
 });
