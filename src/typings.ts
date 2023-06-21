@@ -2,7 +2,8 @@ import {z} from 'zod'
 
 export const Url = z.string().url()
 
-export const EnvName = z.enum(['dev', 'qa', 'prod'])
+// TODO: Generalize env names - base env and augmented?
+export const EnvName = z.enum(['dev', 'qa', 'prod', 'localhost', 'technopark'])
 
 const EnvTemplateFile = z.object({
   template: z.string(),
@@ -27,6 +28,8 @@ const ServerResponseEnvItem = z.object({
   dev: z.string(),
   qa: z.string(),
   prod: z.string(),
+  localhost: z.string(),
+  technopark: z.string(),
   is_deprecated: z.boolean(),
   comment: z.string().optional()
 })
